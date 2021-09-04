@@ -5,7 +5,7 @@ use std::ops::{Add, Div, Mul, Sub};
 pub enum OpError
 {
 	TypeError,
-	CalcError,
+	CalculationError,
 	ParseError(lexical::Error),
 }
 
@@ -14,6 +14,7 @@ pub trait Pow<RHS = Self>
 	type Output;
 	fn pow(self, power: RHS) -> Self::Output;
 }
+
 pub trait EuclDiv<RHS = Self>
 {
 	type Output;
@@ -61,6 +62,7 @@ macro_rules! math
 				}
 			}
 		}
+
 		impl<'a, T> $trait<Value<T>> for &'a Value<T>
 		{
 			type Output = Result<Value<T>, OpError>;
@@ -69,6 +71,7 @@ macro_rules! math
 				self.$fn(&rhs)
 			}
 		}
+
 		impl<'a, T> $trait<i128> for &'a Value<T>
 		{
 			type Output = Result<Value<T>, OpError>;
@@ -84,3 +87,110 @@ macro_rules! math
 					}
 					else
 					{
+						if let Ok(lhs) = lexical::parse::<i128, _>(lhs)
+					{
+						$op_i_i(lhs, rhs)
+							.ok_or(OpError::CalculationError)
+							.map(lexical::to_string)
+					}
+					else
+					{
+						lexical::parse::<f64, _>(lhs)
+							.map_err(OpError::ParseError)
+							.map(|lhs| lexical::to_string($op_f_f(lhs, rhs as f64)))
+					}
+				}
+				.map(Value::from),
+				Value::Array(lhs) =>
+				{
+					lhs.iter().map(|el| el.$fn(rhs)).collect::<Result<Value<T>, _>>()
+				}
+				_ => Err(OpError::TypeError),
+			}
+		}
+	}
+		impl<'a, T> $trait<f64> for &'a Value<T>
+		{
+			type Output = Result<Value<T>, OpError>;
+			fn $fn(self, rhs: f64) -> Self::Output
+			{
+				match self
+				{
+					Value::Str(lhs) => lexical::parse::<f64, _>(lhs)
+						.map_err(OpError::ParseError)
+						.map(|lhs| lexical::to_string($op_f_f(lhs, rhs)))
+						.map(Value::from),
+					Value::Array(lhs) =>
+					{
+						lhs.iter().map(|el| el.$fn(rhs)).collect::<Result<Value<T>, _>>()
+					}
+					_ => Err(OpError::TypeError),
+				}
+			}
+		}
+	};
+}
+
+math!(Add, add, |lhs: f64, rhs: f64|
+{
+	lhs.add(rhs)
+},
+	|lhs: i128, rhs: i128|
+{
+	lhs.checked_add(rhs)
+});
+
+math!(Sub, sub, |lhs: f64, rhs: f64|
+{
+	lhs.sub(rhs)
+},
+	|lhs: i128, rhs: i128|
+{
+	lhs.checked_sub(rhs)
+});
+
+math!(Mul, mul, |lhs: f64, rhs: f64|
+{
+	lhs.mul(rhs)
+},
+	|lhs: i128, rhs: i128|
+{
+	lhs.checked_mul(rhs)
+});
+
+math!(
+	Div,
+	div,
+	|lhs: f64, rhs: f64|
+	{
+		lhs.div(rhs)
+	},
+	|lhs: i128, rhs: i128|
+	{
+		lhs.checked_div(rhs)
+	},
+	true
+);
+
+math!(EuclDiv, eucl_div, |lhs: f64, rhs: f64|
+{
+	(lhs / rhs) as i128
+},
+	|lhs: i128, rhs: i128|
+{
+	lhs.checked_div(rhs)
+});
+
+math!(
+	Pow,
+	pow,
+	|lhs: f64, rhs: f64|
+	{
+		lhs.powf(rhs)
+	},
+	|lhs: i128, rhs: i128|
+	{
+		Some(lhs.pow(rhs as u32))
+	},
+	true
+);

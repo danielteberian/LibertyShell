@@ -59,9 +59,9 @@ impl<T> fmt::Display for Value<T>
 		match *self
 		{
 			Value::Str(ref str_) => write!(f, "{}", str_),
-			Value::Alias(ref alias) => write!(f, "{}}", **alias),
+			Value::Alias(ref alias) => write!(f, "{}", **alias),
 			Value::Array(ref array) => write!(f, "{}", array.iter().format(" ")),
-			Value::HashMap(ref map) => write!(f, "{}", map.value().format(" ")),
+			Value::HashMap(ref map) => write!(f, "{}", map.values().format(" ")),
 			Value::BTreeMap(ref map) => write!(f, "{}", map.values().format(" ")),
 			_ => write!(f, ""),
 		}
